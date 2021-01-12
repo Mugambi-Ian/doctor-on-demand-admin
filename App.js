@@ -121,7 +121,7 @@ const style = StyleSheet.create({
     marginLeft: 20,
     marginRight: 20,
     borderRadius: 10,
-    backgroundColor: '#1eb100',
+    backgroundColor: '#118fca',
     left: 0,
     right: 0,
   },

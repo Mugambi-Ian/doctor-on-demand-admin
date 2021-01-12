@@ -1,7 +1,9 @@
+/* eslint-disable react-native/no-inline-styles */
 import React, {Component} from 'react';
 import {
   Image,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   TextInput,
@@ -10,11 +12,14 @@ import {
 } from 'react-native';
 import * as Animatable from 'react-native-animatable';
 import {
+  fadeIn,
   slideInDown,
   slideInRight,
   slideOutLeft,
 } from '../../../assets/animations';
-import {_auth, _database} from '../../../assets/config';
+import {_auth, _database, _storage} from '../../../assets/config';
+import ImagePicker from 'react-native-image-crop-picker';
+import {PulseIndicator} from 'react-native-indicators';
 const style = StyleSheet.create({
   mainContent: {
     height: '100%',
@@ -32,15 +37,15 @@ const style = StyleSheet.create({
   loaderText: {
     alignSelf: 'center',
     color: '#ffffff',
-    backgroundColor: '#1eb100',
+    backgroundColor: '#118fca',
     paddingLeft: 20,
     paddingRight: 20,
     paddingTop: 5,
     paddingBottom: 10,
     marginTop: '150%',
     borderRadius: 50,
-    fontSize: 16,
-    fontFamily: 'Quicksand-Light',
+    fontSize: 20,
+    fontFamily: 'Quicksand-Regular',
   },
   editBox: {
     flex: 1,
@@ -94,7 +99,8 @@ const style = StyleSheet.create({
     paddingBottom: 2,
   },
   inputIcon: {
-    width: 20,
+    width: 30,
+    height: 30,
     resizeMode: 'contain',
     alignSelf: 'center',
     marginRight: 10,
@@ -109,12 +115,13 @@ const style = StyleSheet.create({
     marginLeft: 5,
   },
   editBtn: {
-    backgroundColor: '#1eb100',
+    backgroundColor: '#118fca',
     elevation: 2,
     borderRadius: 50,
     flex: 1,
     marginRight: 5,
     marginLeft: 5,
+    maxHeight: 40,
   },
   editBtnText: {
     alignSelf: 'center',
@@ -131,7 +138,7 @@ const style = StyleSheet.create({
     fontFamily: 'Quicksand-Light',
     fontSize: 16,
     borderColor: '#fff',
-    borderBottomColor: '#1eb100',
+    borderBottomColor: '#118fca',
     borderWidth: 2,
     borderRadius: 10,
     paddingRight: 10,
@@ -154,6 +161,7 @@ export default class MyInfo extends Component {
       <Animatable.View
         animation={this.state.close === false ? slideInRight : slideOutLeft}
         style={style.mainContent}>
+        <StatusBar barStyle="dark-content" backgroundColor="#d4fffe" />
         <Animatable.View
           delay={500}
           style={style.editBox}
@@ -164,7 +172,7 @@ export default class MyInfo extends Component {
               <Text style={style.inputFieldText}>*Title</Text>
               <View style={style.field}>
                 <Image
-                  source={require('../../../assets/drawable/icon-account.png')}
+                  source={require('../../../assets/drawable/icon-title.png')}
                   style={style.inputIcon}
                 />
                 <TextInput
@@ -198,7 +206,7 @@ export default class MyInfo extends Component {
               <Text style={style.inputFieldText}>*Id Number</Text>
               <View style={style.field}>
                 <Image
-                  source={require('../../../assets/drawable/field-password.png')}
+                  source={require('../../../assets/drawable/icon-id-card.png')}
                   style={style.inputIcon}
                 />
                 <TextInput
@@ -215,7 +223,7 @@ export default class MyInfo extends Component {
               <Text style={style.inputFieldText}>*Major Practice</Text>
               <View style={style.field}>
                 <Image
-                  source={require('../../../assets/drawable/field-password.png')}
+                  source={require('../../../assets/drawable/icon-practice.png')}
                   style={style.inputIcon}
                 />
                 <TextInput
@@ -281,18 +289,90 @@ export default class MyInfo extends Component {
 }
 
 export class SetDp extends Component {
+  state = {
+    loading: false,
+    close: false,
+  };
   render() {
-    return (
+    return this.state.loading === true ? (
+      <Animatable.View style={style.mainContent} animation={fadeIn}>
+        <StatusBar barStyle="dark-content" backgroundColor="#d4fffe" />
+
+        <PulseIndicator color={'#118fca'} style={style.loader} size={100} />
+        <Text style={style.loaderText}>Uploading Photo</Text>
+      </Animatable.View>
+    ) : (
       <Animatable.View
         animation={this.state.close === false ? slideInRight : slideOutLeft}
         style={style.mainContent}>
+        <StatusBar barStyle="dark-content" backgroundColor="#d4fffe" />
         <Animatable.View
           delay={500}
-          style={style.editBox}
-          animation={slideInDown}>
-          <Text style={style.title}>
-            Your required to take a current photo of you
+          style={{
+            ...style.editBox,
+            marginTop: 200,
+            alignSelf: 'center',
+            maxHeight: 200,
+            borderRadius: 20,
+            width: '90%',
+          }}
+          animation={slideInRight}>
+          <Text style={{...style.title, marginTop: 50, alignSelf: 'center'}}>
+            Take a current photo of you
           </Text>
+          <TouchableOpacity
+            style={{
+              ...style.editBtn,
+              marginTop: 20,
+              marginLeft: 50,
+              marginRight: 50,
+            }}
+            onPress={async () => {
+              await setTimeout(async () => {
+                ImagePicker.openCamera({
+                  width: 400,
+                  height: 400,
+                  cropping: true,
+                }).then(async (image) => {
+                  this.setState({loading: true});
+                  const response = await fetch(image.path);
+                  const _file = await response.blob();
+                  const id = _auth.currentUser.uid + new Date().getTime();
+                  const uploadTask = _storage
+                    .ref('doctors/' + _auth.currentUser.uid)
+                    .child(id)
+                    .put(_file);
+                  uploadTask
+                    .on(
+                      'state_changed',
+                      function () {
+                        uploadTask.snapshot.ref
+                          .getDownloadURL()
+                          .then(
+                            async function (downloadURL) {
+                              var url = '' + downloadURL;
+                              await _database
+                                .ref('doctors/' + _auth.currentUser.uid)
+                                .child('userDp')
+                                .set(url);
+                              this.setState({close: true});
+                              await setTimeout(() => {
+                                this.props.closeInfo();
+                              }, 500);
+                              this.props.openTimedSnack('Save Successfull');
+                            }.bind(this),
+                          )
+                          .catch(async (e) => {
+                            console.log(e);
+                          });
+                      }.bind(this),
+                    )
+                    .bind(this);
+                });
+              }, 100);
+            }}>
+            <Text style={style.editBtnText}>Take Photo</Text>
+          </TouchableOpacity>
         </Animatable.View>
       </Animatable.View>
     );

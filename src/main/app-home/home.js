@@ -49,9 +49,6 @@ const style = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    elevation: 4,
-    borderColor: '#ece4e4',
-    borderWidth: 1,
     flexDirection: 'row',
   },
   bgImage: {
@@ -62,6 +59,11 @@ const style = StyleSheet.create({
   navItem: {
     flex: 1,
     justifyContent: 'center',
+    elevation: 1,
+    marginLeft: 2,
+    marginRight: 2,
+    borderTopLeftRadius: 10,
+    borderTopRightRadius: 10,
   },
   navItemIcon: {
     height: 25,
@@ -93,7 +95,6 @@ export default class Home extends Component {
   render() {
     return (
       <Animatable.View animation={fadeIn}>
-        <StatusBar barStyle="dark-content" backgroundColor="#d4fffe" />
         {this.state.loading === true ? (
           <View style={style.mainContent}>
             <PulseIndicator color={'#118fca'} style={style.loader} size={100} />
@@ -109,7 +110,14 @@ export default class Home extends Component {
             }}
           />
         ) : this.state.setDp ? (
-          <SetDp />
+          <SetDp
+            openSnack={this.props.openSnack}
+            openTimedSnack={this.props.openTimedSnack}
+            closeSnack={this.props.closeSnack}
+            closeInfo={() => {
+              this.setState({setDp: undefined});
+            }}
+          />
         ) : (
           <LandingPage
             openSnack={this.props.openSnack}
@@ -128,7 +136,10 @@ class LandingPage extends Component {
   };
   render() {
     return (
-      <Animatable.View animation={slideInRight} style={style.mainContent}>
+      <Animatable.View
+        animation={slideInRight}
+        style={{...style.mainContent, backgroundColor: '#fff'}}>
+        <StatusBar barStyle="dark-content" backgroundColor="#fff" />
         {this.state.currentscreen === 'home' ? <View /> : <View />}
         <Animatable.View
           animation={slideInDown}
@@ -139,10 +150,17 @@ class LandingPage extends Component {
               this.state.currentscreen === 'home'
                 ? {
                     ...style.navItem,
-                    backgroundColor: '#1eb100',
-                    borderTopLeftRadius: 10,
+                    backgroundColor: '#118fca',
+                    borderTopLeftRadius: 0,
+                    marginLeft: 0,
+                    marginRight: 4,
                   }
-                : {...style.navItem, borderTopLeftRadius: 10}
+                : {
+                    ...style.navItem,
+                    borderTopLeftRadius: 0,
+                    marginLeft: 0,
+                    marginRight: 4,
+                  }
             }
             onPress={async () => {
               if (this.state.currentscreen !== 'home') {
@@ -170,24 +188,24 @@ class LandingPage extends Component {
           </TouchableOpacity>
           <TouchableOpacity
             style={
-              this.state.currentscreen === 'favourite'
-                ? {...style.navItem, backgroundColor: '#1eb100'}
+              this.state.currentscreen === 'chat'
+                ? {...style.navItem, backgroundColor: '#118fca'}
                 : style.navItem
             }
             onPress={async () => {
-              if (this.state.currentscreen !== 'favourite') {
+              if (this.state.currentscreen !== 'chat') {
                 await setTimeout(() => {
-                  this.setState({currentscreen: 'favourite'});
+                  this.setState({currentscreen: 'chat'});
                 }, 100);
               }
             }}>
             <Image
-              source={require('../../assets/drawable/icon-favourite.png')}
+              source={require('../../assets/drawable/icon-chat.png')}
               style={style.navItemIcon}
             />
             <Text
               style={
-                this.state.currentscreen === 'favourite'
+                this.state.currentscreen === 'chat'
                   ? {
                       ...style.navItemText,
                       color: '#fff',
@@ -203,10 +221,12 @@ class LandingPage extends Component {
               this.state.currentscreen === 'profile'
                 ? {
                     ...style.navItem,
-                    backgroundColor: '#1eb100',
-                    borderTopRightRadius: 10,
+                    backgroundColor: '#118fca',
+                    borderTopRightRadius: 0,
+                    marginRight: 0,
+                    marginLeft: 4,
                   }
-                : {...style.navItem, borderTopRightRadius: 10}
+                : {...style.navItem, borderTopRightRadius: 0, marginRight: 0,marginLeft:4}
             }
             onPress={async () => {
               if (this.state.currentscreen !== 'profile') {
