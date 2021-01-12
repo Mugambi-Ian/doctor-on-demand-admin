@@ -1,6 +1,7 @@
 /* eslint-disable react-native/no-inline-styles */
 import React, {Component} from 'react';
 import {
+  BackHandler,
   Image,
   StatusBar,
   StyleSheet,
@@ -8,11 +9,14 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import LocationSwitch from 'react-native-location-permission';
 import * as Animatable from 'react-native-animatable';
 import {PulseIndicator} from 'react-native-indicators';
 import {fadeIn, slideInDown, slideInRight} from '../../assets/animations';
 import {_auth, _database} from '../../assets/config';
 import MyInfo, {SetDp} from './my-info/my-info';
+import LocationWidget from './pin-location/pin-location';
+import MyProfile from './my-profile/my-profile';
 const style = StyleSheet.create({
   mainContent: {
     height: '100%',
@@ -44,7 +48,6 @@ const style = StyleSheet.create({
     position: 'absolute',
     borderTopEndRadius: 10,
     borderTopLeftRadius: 10,
-    backgroundColor: '#fff',
     height: 60,
     left: 0,
     right: 0,
@@ -59,11 +62,12 @@ const style = StyleSheet.create({
   navItem: {
     flex: 1,
     justifyContent: 'center',
-    elevation: 1,
+    elevation: 4,
     marginLeft: 2,
     marginRight: 2,
     borderTopLeftRadius: 10,
     borderTopRightRadius: 10,
+    backgroundColor: '#fff',
   },
   navItemIcon: {
     height: 25,
@@ -80,21 +84,44 @@ const style = StyleSheet.create({
   },
 });
 export default class Home extends Component {
-  state = {loading: true, init: undefined};
+  state = {
+    loading: true,
+    init: undefined,
+    user: {
+      userName: '',
+      userDp: '',
+      phoneNumber: '',
+      practice: '',
+      title: '',
+      idNumber: '',
+    },
+  };
   async componentDidMount() {
     await _database.ref('doctors/' + _auth.currentUser.uid).on('value', (x) => {
       if (x.hasChild('userName') === false) {
         this.setState({init: true});
+      } else {
+        const {
+          userName,
+          userDp,
+          phoneNumber,
+          practice,
+          title,
+          idNumber,
+        } = x.val();
+        const user = {userName, userDp, phoneNumber, practice, title, idNumber};
+        this.setState({user: user});
       }
       if (x.hasChild('userDp') === false) {
         this.setState({setDp: true});
       }
+
       this.setState({loading: false});
     });
   }
   render() {
     return (
-      <Animatable.View animation={fadeIn}>
+      <Animatable.View animation={fadeIn} style={{backgroundColor: '#fff'}}>
         {this.state.loading === true ? (
           <View style={style.mainContent}>
             <PulseIndicator color={'#118fca'} style={style.loader} size={100} />
@@ -102,6 +129,7 @@ export default class Home extends Component {
           </View>
         ) : this.state.init ? (
           <MyInfo
+            user={this.state.user}
             openSnack={this.props.openSnack}
             openTimedSnack={this.props.openTimedSnack}
             closeSnack={this.props.closeSnack}
@@ -123,6 +151,11 @@ export default class Home extends Component {
             openSnack={this.props.openSnack}
             openTimedSnack={this.props.openTimedSnack}
             closeSnack={this.props.closeSnack}
+            user={this.state.user}
+            updateInfo={() => {
+              this.setState({init: true});
+            }}
+            unauthorizeUser={this.props.unauthorizeUser}
           />
         )}
       </Animatable.View>
@@ -134,13 +167,41 @@ class LandingPage extends Component {
   state = {
     currentscreen: 'home',
   };
+  async componentDidMount() {
+    LocationSwitch.isLocationEnabled(
+      async () => {},
+      () => {
+        LocationSwitch.enableLocationService();
+      },
+    );
+    this.backHandler = BackHandler.addEventListener(
+      'hardwareBackPress',
+      this.backAction,
+    );
+  }
+  componentWillUnmount() {
+    this.backHandler.remove();
+  }
   render() {
     return (
       <Animatable.View
         animation={slideInRight}
         style={{...style.mainContent, backgroundColor: '#fff'}}>
         <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-        {this.state.currentscreen === 'home' ? <View /> : <View />}
+        {this.state.currentscreen === 'home' ? (
+          <LocationWidget />
+        ) : this.state.currentscreen === 'profile' ? (
+          <MyProfile
+            user={this.props.user}
+            openSnack={this.props.openSnack}
+            openTimedSnack={this.props.openTimedSnack}
+            closeSnack={this.props.closeSnack}
+            updateInfo={this.props.updateInfo}
+            unauthorizeUser={this.props.unauthorizeUser}
+          />
+        ) : (
+          <View />
+        )}
         <Animatable.View
           animation={slideInDown}
           delay={200}
@@ -226,7 +287,12 @@ class LandingPage extends Component {
                     marginRight: 0,
                     marginLeft: 4,
                   }
-                : {...style.navItem, borderTopRightRadius: 0, marginRight: 0,marginLeft:4}
+                : {
+                    ...style.navItem,
+                    borderTopRightRadius: 0,
+                    marginRight: 0,
+                    marginLeft: 4,
+                  }
             }
             onPress={async () => {
               if (this.state.currentscreen !== 'profile') {

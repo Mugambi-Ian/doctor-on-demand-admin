@@ -1,6 +1,7 @@
 /* eslint-disable react-native/no-inline-styles */
 import React, {Component} from 'react';
 import {
+  BackHandler,
   Image,
   ScrollView,
   StatusBar,
@@ -156,6 +157,38 @@ export default class MyInfo extends Component {
     idNumber: '',
     practice: '',
   };
+
+  async componentDidMount() {
+    const {
+      userName,
+      userDp,
+      phoneNumber,
+      practice,
+      title,
+      idNumber,
+    } = this.props.user;
+    const user = {userName, userDp, phoneNumber, practice, title, idNumber};
+    await setTimeout(() => {
+      this.setState(user);
+    }, 100);
+    this.backHandler = BackHandler.addEventListener(
+      'hardwareBackPress',
+      async () => {
+        if (user.userName) {
+          this.setState({close: true});
+          await setTimeout(() => {
+            this.props.closeInfo();
+          }, 400);
+        } else {
+          BackHandler.exitApp();
+        }
+        return true;
+      },
+    );
+  }
+  componentWillUnmount() {
+    this.backHandler.remove();
+  }
   render() {
     return (
       <Animatable.View
@@ -260,6 +293,9 @@ export default class MyInfo extends Component {
                         await x.child('idNumber').ref.set(this.state.idNumber);
                         await x.child('title').ref.set(this.state.title);
                         await x.child('practice').ref.set(this.state.practice);
+                        await x
+                          .child('phoneNumber')
+                          .ref.set(_auth.currentUser.phoneNumber);
                         this.setState({close: true});
                         await setTimeout(() => {
                           this.props.openTimedSnack('Save Successfull');
@@ -297,7 +333,6 @@ export class SetDp extends Component {
     return this.state.loading === true ? (
       <Animatable.View style={style.mainContent} animation={fadeIn}>
         <StatusBar barStyle="dark-content" backgroundColor="#d4fffe" />
-
         <PulseIndicator color={'#118fca'} style={style.loader} size={100} />
         <Text style={style.loaderText}>Uploading Photo</Text>
       </Animatable.View>
