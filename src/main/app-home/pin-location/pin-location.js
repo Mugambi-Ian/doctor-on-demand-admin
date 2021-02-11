@@ -1,12 +1,13 @@
+/* eslint-disable react-native/no-inline-styles */
 import React, {Component} from 'react';
 import {_auth, _database} from '../../../assets/config';
 import MapView, {Marker, AnimatedRegion} from 'react-native-maps';
 import GetLocation from 'react-native-get-location';
-import {Dimensions, Image, StyleSheet, TextInput, View} from 'react-native';
+import {Dimensions, Image, StyleSheet, View, Switch} from 'react-native';
 import * as Animatable from 'react-native-animatable';
-import {fadeIn, slideInDownLess} from '../../../assets/animations';
+import {fadeIn} from '../../../assets/animations';
 const {width, height} = Dimensions.get('window');
-
+import LocationSwitch from 'react-native-location-permission';
 const ASPECT_RATIO = width / height;
 const LATITUDE = 37.78825;
 const LONGITUDE = -122.4324;
@@ -22,6 +23,15 @@ const style = StyleSheet.create({
     justifyContent: 'flex-end',
     alignItems: 'center',
   },
+  title: {
+    fontFamily: 'Quicksand-Bold',
+    marginLeft: 20,
+    marginRight: 20,
+    fontSize: 25,
+    color: '#000',
+    marginTop: 10,
+    flex: 1,
+  },
 });
 export default class LocationWidget extends Component {
   state = {
@@ -33,12 +43,19 @@ export default class LocationWidget extends Component {
       latitudeDelta: 0,
       longitudeDelta: 0,
     }),
+    docIsOn: true,
   };
 
   async componentDidMount() {
+    LocationSwitch.isLocationEnabled(
+      async () => {},
+      () => {
+        LocationSwitch.enableLocationService();
+      },
+    );
+
     GetLocation.getCurrentPosition({
       enableHighAccuracy: true,
-      timeout: 15000,
     })
       .then((location) => {
         this.setState({
@@ -59,29 +76,33 @@ export default class LocationWidget extends Component {
         this.setState({loading: false});
       });
     await setInterval(async () => {
-      GetLocation.getCurrentPosition({
-        enableHighAccuracy: true,
-        timeout: 15000,
-      })
-        .then((location) => {
-          this.setState({
-            longitude: location.longitude,
-            latitude: location.latitude,
-            coordinate: new AnimatedRegion({
-              latitude: location.latitude,
-              longitude: location.longitude,
-              latitudeDelta: 0,
-              longitudeDelta: 0,
-            }),
-            loading: false,
-          });
-        })
-        .catch((error) => {
-          const {code, message} = error;
-          console.warn(code, message);
-          this.setState({loading: false});
-        });
+      this.setState({j: !this.state.j});
     }, 60000);
+  }
+  async componentDidUpdate(prevProps, prevState) {
+    if (this.props.latitude !== prevState.latitude) {
+      if (this.state.docIsOn === true) {
+        const t = new Date();
+        const _h =
+          (t.getHours() <= 9 ? '0' + t.getHours() : t.getHours()) +
+          ':' +
+          (t.getMinutes() <= 9 ? '0' + t.getMinutes() : t.getMinutes()) +
+          ':' +
+          (t.getSeconds() <= 9 ? '0' + t.getSeconds() : t.getSeconds());
+        const _d =
+          t.getDate() + '-' + (t.getMonth() + 1) + '-' + t.getFullYear();
+        const stamp = {
+          longitude: this.state.longitude,
+          latitude: this.state.latitude,
+          time: _h,
+          date: _d,
+          id: _d + '_' + _h,
+        };
+        await _database
+          .ref('active-doctors/' + _auth.currentUser.uid)
+          .set(stamp);
+      }
+    }
   }
 
   getMapRegion = () => ({
@@ -111,6 +132,49 @@ export default class LocationWidget extends Component {
             />
           </Marker.Animated>
         </MapView>
+        <View
+          style={{
+            position: 'absolute',
+            top: 20,
+            right: 0,
+            left: 0,
+            marginRight: 20,
+            marginLeft: 20,
+            backgroundColor: '#fff',
+            elevation: 5,
+            height: 50,
+            width: '90%',
+            borderRadius: 10,
+            flexDirection: 'row',
+            justifyContent: 'center',
+          }}>
+          <Animatable.Text style={style.title}>Available</Animatable.Text>
+          <Switch
+            trackColor={{false: '#767577', true: '#81b0ff'}}
+            thumbColor={this.state.docIsOn ? '#fff' : '#f4f3f4'}
+            ios_backgroundColor="#3e3e3e"
+            onValueChange={(x) => {
+              _database
+                .ref('active-doctors/' + _auth.currentUser.uid)
+                .set(null)
+                .then(() => {
+                  this.setState({docIsOn: x});
+                  this.props.openTimedSnack(
+                    this.state.docIsOn
+                      ? 'Have a successfull shift'
+                      : 'Have a nice time',
+                  );
+                });
+            }}
+            value={this.state.docIsOn}
+            style={{
+              width: 50,
+              marginRight: 10,
+              alignSelf: 'flex-end',
+              marginBottom: 10,
+            }}
+          />
+        </View>
       </Animatable.View>
     );
   }
